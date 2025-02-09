@@ -33,27 +33,27 @@ final class MainViewController: UIViewController {
 
     private let numbersLabel = UILabel()
 
-    private let ACButton = UIButton(type: .system)
-    private let posNegButton = UIButton(type: .system)
-    private let modulatButton = UIButton(type: .system)
+    private let ACButton = NumberButton(.instrument)
+    private let posNegButton = NumberButton(.instrument)
+    private let modularButton = NumberButton(.instrument)
 
-    private let divideButton = UIButton(type: .system)
-    private let multiplyButton = UIButton(type: .system)
-    private let subtractButton = UIButton(type: .system)
-    private let addbutton = UIButton(type: .system)
-    private let resultbutton = UIButton(type: .system)
+    private let divideButton = NumberButton(.operation)
+    private let multiplyButton = NumberButton(.operation)
+    private let subtractButton = NumberButton(.operation)
+    private let addbutton = NumberButton(.operation)
+    private let resultbutton = NumberButton(.operation)
 
-    private let buttonDot = UIButton(type: .system)
-    private let button0 = UIButton(type: .system)
-    private let button1 = UIButton(type: .system)
-    private let button2 = UIButton(type: .system)
-    private let button3 = UIButton(type: .system)
-    private let button4 = UIButton(type: .system)
-    private let button5 = UIButton(type: .system)
-    private let button6 = UIButton(type: .system)
-    private let button7 = UIButton(type: .system)
-    private let button8 = UIButton(type: .system)
-    private let button9 = UIButton(type: .system)
+    private let buttonDot = NumberButton(.number)
+    private let button0 = NumberButton(.number)
+    private let button1 = NumberButton(.number)
+    private let button2 = NumberButton(.number)
+    private let button3 = NumberButton(.number)
+    private let button4 = NumberButton(.number)
+    private let button5 = NumberButton(.number)
+    private let button6 = NumberButton(.number)
+    private let button7 = NumberButton(.number)
+    private let button8 = NumberButton(.number)
+    private let button9 = NumberButton(.number)
 
     private lazy var numberButtons = [
         button1, button2, button3, button4, button5, button6, button7, button8, button9
@@ -63,13 +63,15 @@ final class MainViewController: UIViewController {
         divideButton, multiplyButton, subtractButton, addbutton
     ]
 
-    private let stackView0 = UIStackView()
+    private let stackView0DotResult = UIStackView()
     private let stackView123 = UIStackView()
     private let stackView456 = UIStackView()
     private let stackView789 = UIStackView()
     private let stackViewAC = UIStackView()
 
     private var editMenuInteraction: UIEditMenuInteraction?
+
+    private let spacingHorizontalButtons = 8
 
     override func viewDidLoad() {
         view.backgroundColor = .black
@@ -133,7 +135,7 @@ final class MainViewController: UIViewController {
             view.backgroundColor = .hex("#3a3a3c")
             view.layer.cornerRadius = view.bounds.width / 2
         }
-        [ACButton, posNegButton, modulatButton].forEach { view in
+        [ACButton, posNegButton, modularButton].forEach { view in
             view.backgroundColor = .hex("#8f8f94")
             view.layer.cornerRadius = view.bounds.width / 2
         }
@@ -164,10 +166,10 @@ final class MainViewController: UIViewController {
         numbersLabel.addGestureRecognizer(leftSwipe)
         numbersLabel.addGestureRecognizer(rightSwipe)
 
-        stackView0.axis = .horizontal
-        stackView0.alignment = .center
-        stackView0.distribution = .fillProportionally
-        stackView0.spacing = CGFloat(spacingHorizontalButtons)
+        stackView0DotResult.axis = .horizontal
+        stackView0DotResult.alignment = .center
+        stackView0DotResult.distribution = .fill
+        stackView0DotResult.spacing = CGFloat(spacingHorizontalButtons)
 
         [stackView123, stackView456, stackView789, stackViewAC].forEach { view in
             view.axis = .horizontal
@@ -176,81 +178,74 @@ final class MainViewController: UIViewController {
             view.spacing = CGFloat(spacingHorizontalButtons)
         }
 
-        button0.setTitle("0", for: .normal)
-        button0.setTitleColor(.white, for: .normal)
-        button0.contentHorizontalAlignment = .left
-        button0.contentEdgeInsets = UIEdgeInsets(top: 0, left: 27, bottom: 0, right: 0)
-        button0.titleLabel?.font = .systemFont(ofSize: 40)
+        button0.label.text = "0"
+//        button0.setTitleColor(.white, for: .normal)
+//        button0.contentHorizontalAlignment = .left
+//        button0.contentEdgeInsets = UIEdgeInsets(top: 0, left: 27, bottom: 0, right: 0)
+//        button0.titleLabel?.font = .systemFont(ofSize: 40)
         button0.addTarget(self, action: #selector(didTapNumberButton(_:)), for: .touchUpInside)
 
-        ACButton.setTitle("AC", for: .normal)
-        ACButton.setTitleColor(.black, for: .normal)
-        ACButton.titleLabel?.font = .systemFont(ofSize: 32)
+        ACButton.label.text = "AC"
+        ACButton.label.font = .systemFont(ofSize: 32)
 
-        posNegButton.setTitle("+/-", for: .normal)
-        posNegButton.setTitleColor(.black, for: .normal)
-        posNegButton.titleLabel?.font = .systemFont(ofSize: 32)
+        posNegButton.label.text = "+/-"
+        posNegButton.label.font = .systemFont(ofSize: 32)
 
-        modulatButton.setTitle("%", for: .normal)
-        modulatButton.setTitleColor(.black, for: .normal)
-        modulatButton.titleLabel?.font = .systemFont(ofSize: 32)
+        modularButton.label.text = "%"
+        modularButton.label.font = .systemFont(ofSize: 32)
 
         // ------
-        divideButton.setTitle("/", for: .normal)
-        divideButton.setTitleColor(.white, for: .normal)
-        divideButton.titleLabel?.font = .systemFont(ofSize: 32)
+        divideButton.label.text = "/"
+//        divideButton.setTitle("/", for: .normal)
+//        divideButton.setTitleColor(.white, for: .normal)
+//        divideButton.titleLabel?.font = .systemFont(ofSize: 32)
+        multiplyButton.label.text = "x"
+        subtractButton.label.text = "-"
+        addbutton.label.text = "+"
 
-        multiplyButton.setTitle("x", for: .normal)
-        multiplyButton.setTitleColor(.white, for: .normal)
-        multiplyButton.titleLabel?.font = .systemFont(ofSize: 40)
-
-        subtractButton.setTitle("-", for: .normal)
-        subtractButton.setTitleColor(.white, for: .normal)
-        subtractButton.titleLabel?.font = .systemFont(ofSize: 40)
-
-        addbutton.setTitle("+", for: .normal)
-        addbutton.setTitleColor(.white, for: .normal)
-        addbutton.titleLabel?.font = .systemFont(ofSize: 40)
+//        multiplyButton.setTitle("x", for: .normal)
+//        multiplyButton.setTitleColor(.white, for: .normal)
+//        multiplyButton.titleLabel?.font = .systemFont(ofSize: 40)
         // ------
 
-        [ACButton, posNegButton, modulatButton].forEach { button in
+        [ACButton, posNegButton, modularButton].forEach { button in
             button.addTarget(self, action: #selector(didTapNumberButton(_:)), for: .touchUpInside)
         }
         [divideButton, multiplyButton, subtractButton, addbutton].forEach { button in
             button.addTarget(self, action: #selector(didTapOperationButton(_:)), for: .touchUpInside)
         }
 
-        resultbutton.setTitle("=", for: .normal)
-        resultbutton.setTitleColor(.white, for: .normal)
-        resultbutton.titleLabel?.font = .systemFont(ofSize: 40)
+        resultbutton.label.text = "="
+//        resultbutton.setTitle("=", for: .normal)
+//        resultbutton.setTitleColor(.white, for: .normal)
+//        resultbutton.titleLabel?.font = .systemFont(ofSize: 40)
         resultbutton.addTarget(self, action: #selector(didTapResultButton(_:)), for: .touchUpInside)
 
-        buttonDot.setTitle(",", for: .normal)
-        buttonDot.setTitleColor(.white, for: .normal)
-        buttonDot.titleLabel?.font = .systemFont(ofSize: 32)
+        buttonDot.label.text = "."
+//        buttonDot.setTitleColor(.white, for: .normal)
+//        buttonDot.titleLabel?.font = .systemFont(ofSize: 32)
         buttonDot.addTarget(self, action: #selector(didTapNumberButton(_:)), for: .touchUpInside)
 
         numberButtons.indices.forEach { index in
-            numberButtons[index].setTitle("\(index + 1)", for: .normal)
-            numberButtons[index].setTitleColor(.white, for: .normal)
-            numberButtons[index].titleLabel?.font = .systemFont(ofSize: 40)
+            (numberButtons[index] as? NumberButton)?.label.text = "\(index + 1)"
+//            numberButtons[index].setTitle("\(index + 1)", for: .normal)
+//            numberButtons[index].setTitleColor(.white, for: .normal)
+//            numberButtons[index].titleLabel?.font = .systemFont(ofSize: 40)
             numberButtons[index].addTarget(self, action: #selector(didTapNumberButton(_:)), for: .touchUpInside)
         }
 
         view.addSubview(numbersLabel)
-        view.addSubview(stackView0)
+        view.addSubview(stackView0DotResult)
         view.addSubview(stackView123)
         view.addSubview(stackView456)
         view.addSubview(stackView789)
         view.addSubview(stackViewAC)
-        [button0, buttonDot, resultbutton].forEach { stackView0.addArrangedSubview($0) }
+        [button0, buttonDot, resultbutton].forEach { stackView0DotResult.addArrangedSubview($0) }
         [button1, button2, button3, addbutton].forEach { stackView123.addArrangedSubview($0) }
         [button4, button5, button6, subtractButton].forEach { stackView456.addArrangedSubview($0) }
         [button7, button8, button9, multiplyButton].forEach { stackView789.addArrangedSubview($0) }
-        [ACButton, posNegButton, modulatButton, divideButton].forEach { stackViewAC.addArrangedSubview($0) }
+        [ACButton, posNegButton, modularButton, divideButton].forEach { stackViewAC.addArrangedSubview($0) }
     }
-
-    private let spacingHorizontalButtons = 8
 
     private func makeConstraints() {
         let buttonsSize: Int = Int(UIScreen.main.bounds.width) - 16 - 16 -
@@ -262,12 +257,12 @@ final class MainViewController: UIViewController {
             make.leading.trailing.equalToSuperview().inset(16)
         }
 
-        stackView0.snp.makeConstraints { make in
+        stackView0DotResult.snp.makeConstraints { make in
             make.bottom.equalTo(view.safeAreaLayoutGuide.snp.bottom).inset(32)
             make.leading.trailing.equalToSuperview().inset(16)
         }
         stackView123.snp.makeConstraints { make in
-            make.bottom.equalTo(stackView0.snp.top).offset(-spacingHorizontalButtons)
+            make.bottom.equalTo(stackView0DotResult.snp.top).offset(-spacingHorizontalButtons)
             make.leading.trailing.equalToSuperview().inset(16)
         }
         stackView456.snp.makeConstraints { make in
@@ -291,7 +286,7 @@ final class MainViewController: UIViewController {
         numberButtons.forEach { view in
             view.snp.makeConstraints { $0.size.equalTo(result) }
         }
-        [ACButton, posNegButton, modulatButton].forEach { view in
+        [ACButton, posNegButton, modularButton].forEach { view in
             view.snp.makeConstraints { $0.size.equalTo(result) }
         }
         [addbutton, subtractButton, multiplyButton, divideButton].forEach { view in
@@ -302,31 +297,34 @@ final class MainViewController: UIViewController {
 
 // MARK: - Actions
 private extension MainViewController {
-    private func handleACButtonIfNeeded(_ sender: UIButton) {
-        ACButton.setTitle(
-            numbersLabel.text?.isEmpty == true ? "AC" : "C",
-            for: .normal
-        )
-
-        if sender.currentTitle == "C" {
-            ACButton.setTitle("AC", for: .normal)
+    @objc func didTapNumberButton(_ sender: NumberButton) {
+        guard let number = sender.label.text else {
+            return
         }
+        operationButtons.forEach { $0.isSelected = false }
+
+        numbersLabel.text = NewCalculatorService.shared.didTapNumber(number)
     }
 
-    @objc func didTapNumberButton(_ sender: UIButton) {
-        handleACButtonIfNeeded(sender)
+    @objc func didTapOperationButton(_ sender: NumberButton) {
+        guard let operation = sender.label.text else {
+            return
+        }
+        guard let index = operationButtons.firstIndex(where: { $0.hashValue == sender.hashValue }) else {
+            return
+        }
+        operationButtons.forEach { $0.isSelected = false }
+        operationButtons[index].isSelected = true
 
-        numbersLabel.text = CalculatorService.shared
-            .didTapNumberButton(sender: sender, labelText: "")
-            .format()
+        let prematureResultIfNeeded = NewCalculatorService.shared.didTapOperator(operation)
+        guard let prematureResultIfNeeded else {
+            return
+        }
+        numbersLabel.text = prematureResultIfNeeded.format()
     }
 
-    @objc func didTapOperationButton(_ sender: UIButton) {
-        CalculatorService.shared.didTapOperatorButton(sender: sender)
-    }
-
-    @objc func didTapResultButton(_ sender: UIButton) {
-        numbersLabel.text = CalculatorService.shared
+    @objc func didTapResultButton(_ sender: NumberButton) {
+        numbersLabel.text = NewCalculatorService.shared
             .didTapResultButton()
             .format()
     }
@@ -336,9 +334,7 @@ private extension MainViewController {
             return
         }
 
-        numbersLabel.text = CalculatorService.shared
-            .didSwipeLabel()
-            .format()
+        numbersLabel.text = NewCalculatorService.shared.didSwipeLabel().format()
     }
 }
 
@@ -349,9 +345,15 @@ private extension String {
         let formatter = NumberFormatter()
         formatter.numberStyle = .decimal
         formatter.groupingSeparator = " "
-        formatter.maximumFractionDigits = 0
 
-        let decimal = Decimal(string: self) ?? 0
+        guard let decimal = Decimal(string: self) else { return "Error" }
+        let doubleValue = (decimal as NSDecimalNumber).doubleValue
+
+        if abs(doubleValue) >= 10000 {
+            formatter.maximumFractionDigits = 2 // Keep decimals
+        } else {
+            formatter.maximumFractionDigits = 2 // Keep decimals always
+        }
 
         return formatter.string(from: decimal as NSNumber) ?? "Error"
     }
