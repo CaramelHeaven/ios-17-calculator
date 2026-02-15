@@ -2,32 +2,6 @@ import Foundation
 import SnapKit
 import UIKit
 
-extension MainViewController: UIEditMenuInteractionDelegate {
-    func editMenuInteraction(
-        _ interaction: UIEditMenuInteraction,
-        menuFor configuration: UIEditMenuConfiguration,
-        suggestedActions: [UIMenuElement]
-    ) -> UIMenu? {
-        var actions = suggestedActions
-
-        let customMenu = UIMenu(title: "", options: .displayInline, children: [
-            UIAction(title: "Copy") { _ in
-                print("menuItem1")
-            },
-            UIAction(title: "Paste") { _ in
-                print("menuItem2")
-            },
-
-        ])
-
-        actions.append(customMenu)
-
-//        return UIMenu(children: actions) // For Custom and Suggested Menu
-
-        return UIMenu(children: customMenu.children) // For Custom Menu Only
-    }
-}
-
 final class MainViewController: UIViewController {
     // MARK: - Properties
 
@@ -77,41 +51,10 @@ final class MainViewController: UIViewController {
         view.backgroundColor = .black
 
         drawSelf()
-        setupEditMenuInteraction()
         makeConstraints()
     }
 
-    private func setupEditMenuInteraction() {
-        // Addding Menu Interaction to TextView
-        editMenuInteraction = UIEditMenuInteraction(delegate: self)
-        numbersLabel.addInteraction(editMenuInteraction!)
-
-        // Addding Long Press Gesture
-
-        let longPressGestureRecognizer = UILongPressGestureRecognizer(target: self, action: #selector(handleLongPress(_:)))
-        longPressGestureRecognizer.minimumPressDuration = 0.25
-        numbersLabel.addGestureRecognizer(longPressGestureRecognizer)
-    }
-
     @objc func handleLongPress(_ gestureRecognizer: UILongPressGestureRecognizer) {
-        switch gestureRecognizer.state {
-        case .possible:
-            print("possible")
-        case .began:
-            print("began")
-        case .changed:
-            print("changed")
-        case .ended:
-            print("ended")
-        case .cancelled:
-            print("calceleld")
-        case .failed:
-            print("failed")
-        case .recognized:
-            print("recognized")
-        default:
-            break
-        }
         guard gestureRecognizer.state == .began else { return }
 
         let configuration = UIEditMenuConfiguration(
@@ -179,10 +122,6 @@ final class MainViewController: UIViewController {
         }
 
         button0.label.text = "0"
-//        button0.setTitleColor(.white, for: .normal)
-//        button0.contentHorizontalAlignment = .left
-//        button0.contentEdgeInsets = UIEdgeInsets(top: 0, left: 27, bottom: 0, right: 0)
-//        button0.titleLabel?.font = .systemFont(ofSize: 40)
         button0.addTarget(self, action: #selector(didTapNumberButton(_:)), for: .touchUpInside)
 
         ACButton.label.text = "AC"
@@ -196,16 +135,10 @@ final class MainViewController: UIViewController {
 
         // ------
         divideButton.label.text = "/"
-//        divideButton.setTitle("/", for: .normal)
-//        divideButton.setTitleColor(.white, for: .normal)
-//        divideButton.titleLabel?.font = .systemFont(ofSize: 32)
         multiplyButton.label.text = "x"
         subtractButton.label.text = "-"
         addbutton.label.text = "+"
 
-//        multiplyButton.setTitle("x", for: .normal)
-//        multiplyButton.setTitleColor(.white, for: .normal)
-//        multiplyButton.titleLabel?.font = .systemFont(ofSize: 40)
         // ------
 
         [ACButton, posNegButton, modularButton].forEach { button in
@@ -216,22 +149,16 @@ final class MainViewController: UIViewController {
         }
 
         resultbutton.label.text = "="
-//        resultbutton.setTitle("=", for: .normal)
-//        resultbutton.setTitleColor(.white, for: .normal)
-//        resultbutton.titleLabel?.font = .systemFont(ofSize: 40)
         resultbutton.addTarget(self, action: #selector(didTapResultButton(_:)), for: .touchUpInside)
 
         buttonDot.label.text = "."
-//        buttonDot.setTitleColor(.white, for: .normal)
-//        buttonDot.titleLabel?.font = .systemFont(ofSize: 32)
         buttonDot.addTarget(self, action: #selector(didTapNumberButton(_:)), for: .touchUpInside)
 
         numberButtons.indices.forEach { index in
-            (numberButtons[index] as? NumberButton)?.label.text = "\(index + 1)"
-//            numberButtons[index].setTitle("\(index + 1)", for: .normal)
-//            numberButtons[index].setTitleColor(.white, for: .normal)
-//            numberButtons[index].titleLabel?.font = .systemFont(ofSize: 40)
-            numberButtons[index].addTarget(self, action: #selector(didTapNumberButton(_:)), for: .touchUpInside)
+            numberButtons[index].label.text = "\(index + 1)"
+            numberButtons[index].addTarget(
+                self, action: #selector(didTapNumberButton(_:)), for: .touchUpInside
+            )
         }
 
         view.addSubview(numbersLabel)
@@ -303,7 +230,7 @@ private extension MainViewController {
         }
         operationButtons.forEach { $0.isSelected = false }
 
-        numbersLabel.text = NewCalculatorService.shared.didTapNumber(number)
+        numbersLabel.text = CalculatorService.shared.didTapNumber(number).format()
     }
 
     @objc func didTapOperationButton(_ sender: NumberButton) {
@@ -316,16 +243,16 @@ private extension MainViewController {
         operationButtons.forEach { $0.isSelected = false }
         operationButtons[index].isSelected = true
 
-        let prematureResultIfNeeded = NewCalculatorService.shared.didTapOperator(operation)
+        let prematureResultIfNeeded = CalculatorService.shared.didTapOperator(operation)
         guard let prematureResultIfNeeded else {
             return
         }
-        numbersLabel.text = prematureResultIfNeeded.format()
+        numbersLabel.text = prematureResultIfNeeded
     }
 
     @objc func didTapResultButton(_ sender: NumberButton) {
-        numbersLabel.text = NewCalculatorService.shared
-            .didTapResultButton()
+        numbersLabel.text = CalculatorService.shared
+            .didTapEquals()
             .format()
     }
 
@@ -334,7 +261,7 @@ private extension MainViewController {
             return
         }
 
-        numbersLabel.text = NewCalculatorService.shared.didSwipeLabel().format()
+        numbersLabel.text = CalculatorService.shared.didSwipe()
     }
 }
 

@@ -18,6 +18,7 @@ let project = Project(
             destinations: .iOS,
             product: .app,
             bundleId: "io.tuist.LizaCalculator",
+            deploymentTargets: .iOS("16.0"),
             infoPlist: .extendingDefault(
                 with: [
                     "UILaunchStoryboardName": "LaunchScreen.storyboard",

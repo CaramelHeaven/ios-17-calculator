@@ -76,7 +76,6 @@ final class NumberButton: UIControl {
     }
 
     private func makeAppearance() {
-        print("isHighlighted: \(isHighlighted), isSelected: \(isEnabled)")
         backgroundColor = isSelected ? .white : isHighlighted ? type.highlightedColor : type.defaultColor
         label.textColor = isSelected ? type.selectedTextColor : type.defaultTextColor
     }
