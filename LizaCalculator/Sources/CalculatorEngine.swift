@@ -3,11 +3,15 @@ import Foundation
 final class CalculatorEngine {
     private enum State {
         case enteringFirst
+        case operatorPending
         case enteringSecond
+        case trailingOperatorPending
+        case enteringTrailing
         case showingResult
+        case error
     }
 
-    private enum Operator {
+    private enum Operator: Equatable {
         case add, subtract, multiply, divide
 
         init?(symbol: String) {
@@ -20,208 +24,568 @@ final class CalculatorEngine {
             }
         }
 
-        func apply(_ lhs: Decimal, _ rhs: Decimal) -> Decimal {
+        var isHighPrecedence: Bool {
+            self == .multiply || self == .divide
+        }
+
+        func apply(_ lhs: Decimal, _ rhs: Decimal) -> Decimal? {
             switch self {
-            case .add: return lhs + rhs
-            case .subtract: return lhs - rhs
-            case .multiply: return lhs * rhs
-            case .divide: return rhs == 0 ? 0 : lhs / rhs
+            case .add:
+                return lhs + rhs
+            case .subtract:
+                return lhs - rhs
+            case .multiply:
+                return lhs * rhs
+            case .divide:
+                guard rhs != 0 else { return nil }
+                return lhs / rhs
             }
         }
     }
 
-    // MARK: - Properties
+    private struct PercentTemplate {
+        let operation: Operator
+        let percent: Decimal
+
+        func resolvedOperand(for base: Decimal) -> Decimal {
+            switch operation {
+            case .add, .subtract:
+                return base * percent / 100
+            case .multiply, .divide:
+                return percent / 100
+            }
+        }
+    }
+
+    private struct RepeatOperation {
+        let operation: Operator
+        let operand: Decimal
+        let percentTemplate: PercentTemplate?
+    }
+
+    // MARK: - State
+
     private var state: State = .enteringFirst
 
     private var first: Decimal = 0
-    private var second: Decimal = 0
+    private var second: Decimal?
+    private var trailing: Decimal?
 
     private var currentOperator: Operator?
-    private var lastOperator: Operator?
-    private var lastOperand: Decimal?
+    private var trailingOperator: Operator?
+
+    private var lastRepeat: RepeatOperation?
+    private var secondPercentTemplate: PercentTemplate?
+    private var trailingPercentTemplate: PercentTemplate?
 
     private var currentInput: String = "0"
 
     // MARK: - Public API
 
     func inputDigit(_ digit: String) -> String {
-        switch state {
-        case .enteringFirst:
-            if currentInput == "0" {
-                currentInput = digit
-            } else {
-                currentInput += digit
-            }
-            first = Decimal(string: currentInput) ?? 0
-            return currentInput
-
-        case .enteringSecond:
-            if currentInput == "0" {
-                currentInput = digit
-            } else {
-                currentInput += digit
-            }
-            second = Decimal(string: currentInput) ?? 0
-            return currentInput
-
-        case .showingResult:
-            // Если точка есть, не сбрасываем, добавляем к текущему числу
-            if currentInput.contains(".") {
-                currentInput += digit
-                first = Decimal(string: currentInput) ?? first
-                return currentInput
-            } else {
-                // Иначе начинаем новое число
-                resetForNewInput()
-                currentInput = digit
-                first = Decimal(string: currentInput) ?? 0
-                state = .enteringFirst
-                return currentInput
-            }
+        guard state != .error else {
+            clearAll()
+            return inputDigit(digit)
         }
+
+        switch state {
+        case .showingResult:
+            startNewFirstEntry()
+        case .operatorPending:
+            startSecondEntry()
+        case .trailingOperatorPending:
+            startTrailingEntry()
+        case .enteringFirst, .enteringSecond, .enteringTrailing:
+            break
+        case .error:
+            break
+        }
+
+        appendDigit(digit)
+        updateActiveOperandFromInput()
+        clearActivePercentTemplate()
+        return currentInput
     }
 
     func inputDot() -> String {
+        guard state != .error else {
+            clearAll()
+            return inputDot()
+        }
+
+        switch state {
+        case .showingResult:
+            startNewFirstEntry()
+        case .operatorPending:
+            startSecondEntry()
+        case .trailingOperatorPending:
+            startTrailingEntry()
+        case .enteringFirst, .enteringSecond, .enteringTrailing:
+            break
+        case .error:
+            break
+        }
+
         if !currentInput.contains(".") {
             currentInput += "."
         }
+        updateActiveOperandFromInput()
+        clearActivePercentTemplate()
         return currentInput
     }
 
     func inputOperator(_ symbol: String) -> String? {
         guard let op = Operator(symbol: symbol) else { return nil }
+        guard state != .error else { return currentInput }
 
         switch state {
-        case .enteringSecond:
-            let result = calculate()
-            first = result
-            currentInput = formatted(result)
-            second = 0
+        case .enteringFirst:
             currentOperator = op
-            return currentInput
-
-        case .enteringFirst, .showingResult:
-            currentOperator = op
-            state = .enteringSecond
-            currentInput = "0"
+            state = .operatorPending
+            currentInput = formatted(first)
             return nil
+
+        case .operatorPending:
+            currentOperator = op
+            return nil
+
+        case .enteringSecond:
+            return handleOperatorAfterSecond(op)
+
+        case .trailingOperatorPending:
+            return handleOperatorFromTrailingPending(op)
+
+        case .enteringTrailing:
+            return handleOperatorAfterTrailing(op)
+
+        case .showingResult:
+            currentOperator = op
+            second = nil
+            trailing = nil
+            trailingOperator = nil
+            secondPercentTemplate = nil
+            trailingPercentTemplate = nil
+            state = .operatorPending
+            currentInput = formatted(first)
+            return nil
+
+        case .error:
+            return currentInput
         }
     }
 
     func inputEquals() -> String {
+        guard state != .error else { return currentInput }
+
         switch state {
+        case .enteringFirst:
+            guard let lastRepeat else { return formatted(first) }
+            return applyRepeatToNewFirst(lastRepeat)
+
+        case .operatorPending:
+            guard let currentOperator else { return formatted(first) }
+            second = first
+            return finishExpression(repeatOperation: RepeatOperation(
+                operation: currentOperator,
+                operand: first,
+                percentTemplate: nil
+            ))
+
         case .enteringSecond:
-            if second == 0, let last = lastOperand {
-                second = last
-            }
-            let result = calculate()
-            state = .showingResult
-            currentInput = formatted(result)
-            return currentInput
+            guard let currentOperator else { return formatted(first) }
+            let operand = second ?? 0
+            return finishExpression(repeatOperation: RepeatOperation(
+                operation: currentOperator,
+                operand: operand,
+                percentTemplate: secondPercentTemplate
+            ))
+
+        case .trailingOperatorPending:
+            guard let trailingOperator else { return formatted(first) }
+            let operand = second ?? first
+            trailing = operand
+            return finishExpression(repeatOperation: RepeatOperation(
+                operation: trailingOperator,
+                operand: operand,
+                percentTemplate: nil
+            ))
+
+        case .enteringTrailing:
+            guard let trailingOperator else { return formatted(first) }
+            let operand = trailing ?? 0
+            return finishExpression(repeatOperation: RepeatOperation(
+                operation: trailingOperator,
+                operand: operand,
+                percentTemplate: trailingPercentTemplate
+            ))
 
         case .showingResult:
-            guard let op = lastOperator,
-                  let operand = lastOperand else {
-                return formatted(first)
-            }
+            guard let lastRepeat else { return formatted(first) }
+            return applyRepeatToCurrentResult(lastRepeat)
 
-            first = op.apply(first, operand)
-            currentInput = formatted(first)
+        case .error:
             return currentInput
-
-        case .enteringFirst:
-            return formatted(first)
         }
     }
 
     func inputPercent() -> String {
+        guard state != .error else { return currentInput }
+
         switch state {
         case .enteringFirst:
             first /= 100
             currentInput = formatted(first)
             return currentInput
+
+        case .operatorPending:
+            startSecondEntry(with: first)
+            return inputPercent()
+
         case .enteringSecond:
-            second = (second / 100) * first
-            currentInput = formatted(second)
+            guard let currentOperator else { return currentInput }
+            let rawPercent = second ?? 0
+            let template = PercentTemplate(operation: currentOperator, percent: rawPercent)
+            let resolvedOperand = template.resolvedOperand(for: first)
+            second = resolvedOperand
+            secondPercentTemplate = template
+            currentInput = formatted(resolvedOperand)
             return currentInput
+
+        case .trailingOperatorPending:
+            startTrailingEntry(with: second ?? first)
+            return inputPercent()
+
+        case .enteringTrailing:
+            guard let trailingOperator else { return currentInput }
+            let rawPercent = trailing ?? 0
+            let template = PercentTemplate(operation: trailingOperator, percent: rawPercent)
+            let base = second ?? first
+            let resolvedOperand = template.resolvedOperand(for: base)
+            trailing = resolvedOperand
+            trailingPercentTemplate = template
+            currentInput = formatted(resolvedOperand)
+            return currentInput
+
         case .showingResult:
             first /= 100
             currentInput = formatted(first)
+            return currentInput
+
+        case .error:
             return currentInput
         }
     }
 
     func toggleSign() -> String {
+        guard state != .error else { return currentInput }
+
         switch state {
-        case .enteringFirst, .showingResult:
-            first *= -1
-            currentInput = formatted(first)
-            return currentInput
-        case .enteringSecond:
-            second *= -1
-            currentInput = formatted(second)
-            return currentInput
+        case .showingResult:
+            state = .enteringFirst
+        case .operatorPending:
+            startSecondEntry()
+        case .trailingOperatorPending:
+            startTrailingEntry()
+        case .enteringFirst, .enteringSecond, .enteringTrailing:
+            break
+        case .error:
+            break
         }
+
+        if currentInput.hasPrefix("-") {
+            currentInput.removeFirst()
+        } else if currentInput != "0" {
+            currentInput = "-" + currentInput
+        } else {
+            currentInput = "-0"
+        }
+        updateActiveOperandFromInput()
+        clearActivePercentTemplate()
+        return currentInput
     }
 
     func clear() -> String {
-        state = .enteringFirst
-        first = 0
-        second = 0
-        currentOperator = nil
-        lastOperator = nil
-        lastOperand = nil
-        currentInput = "0"
-        return "0"
+        clearAll()
+        return currentInput
     }
 
     func backspace() -> String {
-        guard currentInput.count > 1 else {
-            currentInput = "0"
-            updateDecimalFromInput()
+        guard state != .error else {
+            clearAll()
             return currentInput
         }
+
+        switch state {
+        case .showingResult:
+            state = .enteringFirst
+        case .operatorPending:
+            state = .enteringFirst
+        case .trailingOperatorPending:
+            state = .enteringSecond
+            trailing = nil
+            trailingOperator = nil
+            trailingPercentTemplate = nil
+        case .enteringFirst, .enteringSecond, .enteringTrailing:
+            break
+        case .error:
+            break
+        }
+
+        guard currentInput.count > 1 else {
+            currentInput = "0"
+            updateActiveOperandFromInput()
+            clearActivePercentTemplate()
+            return currentInput
+        }
+
         currentInput.removeLast()
-        updateDecimalFromInput()
+        if currentInput == "-" {
+            currentInput = "0"
+        }
+        updateActiveOperandFromInput()
+        clearActivePercentTemplate()
         return currentInput
     }
 
     func currentValue() -> String {
-        return currentInput
+        currentInput
     }
 }
 
 // MARK: - Private
 
 private extension CalculatorEngine {
-    func calculate() -> Decimal {
-        guard let op = currentOperator else { return first }
-        let result = op.apply(first, second)
-        lastOperator = op
-        lastOperand = second
-        first = result
-        second = 0
-        return result
-    }
-
     func formatted(_ value: Decimal) -> String {
-        (value as NSDecimalNumber).stringValue
+        guard value != 0 else { return "0" }
+        return (value as NSDecimalNumber).stringValue
     }
 
-    func updateDecimalFromInput() {
+    func updateActiveOperandFromInput() {
         let value = Decimal(string: currentInput) ?? 0
         switch state {
-        case .enteringFirst, .showingResult: first = value
-        case .enteringSecond: second = value
+        case .enteringFirst, .showingResult:
+            first = value
+        case .enteringSecond, .operatorPending:
+            second = value
+        case .enteringTrailing, .trailingOperatorPending:
+            trailing = value
+        case .error:
+            break
         }
     }
 
-    func resetForNewInput() {
-        currentOperator = nil
-        lastOperator = nil
-        lastOperand = nil
+    func appendDigit(_ digit: String) {
+        if currentInput == "0" {
+            currentInput = digit
+        } else if currentInput == "-0" {
+            currentInput = "-" + digit
+        } else {
+            currentInput += digit
+        }
+    }
+
+    func startNewFirstEntry() {
         first = 0
-        second = 0
+        second = nil
+        trailing = nil
+        currentOperator = nil
+        trailingOperator = nil
+        secondPercentTemplate = nil
+        trailingPercentTemplate = nil
         currentInput = "0"
+        state = .enteringFirst
+    }
+
+    func startSecondEntry(with value: Decimal = 0) {
+        second = value
+        currentInput = formatted(value)
+        state = .enteringSecond
+        secondPercentTemplate = nil
+    }
+
+    func startTrailingEntry(with value: Decimal = 0) {
+        trailing = value
+        currentInput = formatted(value)
+        state = .enteringTrailing
+        trailingPercentTemplate = nil
+    }
+
+    private func handleOperatorAfterSecond(_ op: Operator) -> String? {
+        guard let currentOperator else { return nil }
+
+        if op.isHighPrecedence, !currentOperator.isHighPrecedence {
+            trailingOperator = op
+            trailing = nil
+            trailingPercentTemplate = nil
+            state = .trailingOperatorPending
+            currentInput = formatted(second ?? 0)
+            return nil
+        }
+
+        guard let result = evaluateExpression() else {
+            return enterError()
+        }
+
+        first = result
+        second = nil
+        trailing = nil
+        trailingOperator = nil
+        secondPercentTemplate = nil
+        trailingPercentTemplate = nil
+        self.currentOperator = op
+        state = .operatorPending
+        currentInput = formatted(result)
+        return currentInput
+    }
+
+    private func handleOperatorFromTrailingPending(_ op: Operator) -> String? {
+        if op.isHighPrecedence {
+            trailingOperator = op
+            return nil
+        }
+
+        trailing = second ?? first
+        guard let result = evaluateExpression() else {
+            return enterError()
+        }
+
+        first = result
+        second = nil
+        trailing = nil
+        trailingOperator = nil
+        secondPercentTemplate = nil
+        trailingPercentTemplate = nil
+        currentOperator = op
+        state = .operatorPending
+        currentInput = formatted(result)
+        return currentInput
+    }
+
+    private func handleOperatorAfterTrailing(_ op: Operator) -> String? {
+        guard let trailingOperator else { return nil }
+
+        if op.isHighPrecedence {
+            guard let resolvedSecond = trailingOperator.apply(second ?? 0, trailing ?? 0) else {
+                return enterError()
+            }
+
+            second = resolvedSecond
+            trailing = nil
+            trailingPercentTemplate = nil
+            self.trailingOperator = op
+            state = .trailingOperatorPending
+            currentInput = formatted(resolvedSecond)
+            return currentInput
+        }
+
+        guard let result = evaluateExpression() else {
+            return enterError()
+        }
+
+        first = result
+        second = nil
+        trailing = nil
+        self.trailingOperator = nil
+        secondPercentTemplate = nil
+        trailingPercentTemplate = nil
+        currentOperator = op
+        state = .operatorPending
+        currentInput = formatted(result)
+        return currentInput
+    }
+
+    private func finishExpression(repeatOperation: RepeatOperation) -> String {
+        guard let result = evaluateExpression() else {
+            return enterError()
+        }
+
+        first = result
+        second = nil
+        trailing = nil
+        currentOperator = nil
+        trailingOperator = nil
+        secondPercentTemplate = nil
+        trailingPercentTemplate = nil
+        lastRepeat = repeatOperation
+        state = .showingResult
+        currentInput = formatted(result)
+        return currentInput
+    }
+
+    func evaluateExpression() -> Decimal? {
+        guard let currentOperator else { return first }
+        let secondOperand = second ?? first
+
+        guard let trailingOperator else {
+            return currentOperator.apply(first, secondOperand)
+        }
+
+        let trailingOperand = trailing ?? secondOperand
+        guard let resolvedSecond = trailingOperator.apply(secondOperand, trailingOperand) else {
+            return nil
+        }
+
+        return currentOperator.apply(first, resolvedSecond)
+    }
+
+    private func applyRepeatToCurrentResult(_ repeatOperation: RepeatOperation) -> String {
+        guard let result = repeatOperation.operation.apply(first, repeatOperation.operand) else {
+            return enterError()
+        }
+
+        first = result
+        currentInput = formatted(result)
+        state = .showingResult
+        return currentInput
+    }
+
+    private func applyRepeatToNewFirst(_ repeatOperation: RepeatOperation) -> String {
+        let operand = repeatOperation.percentTemplate?.resolvedOperand(for: first)
+            ?? repeatOperation.operand
+
+        guard let result = repeatOperation.operation.apply(first, operand) else {
+            return enterError()
+        }
+
+        first = result
+        currentInput = formatted(result)
+        lastRepeat = RepeatOperation(
+            operation: repeatOperation.operation,
+            operand: operand,
+            percentTemplate: repeatOperation.percentTemplate
+        )
+        state = .showingResult
+        return currentInput
+    }
+
+    func clearActivePercentTemplate() {
+        switch state {
+        case .enteringSecond:
+            secondPercentTemplate = nil
+        case .enteringTrailing:
+            trailingPercentTemplate = nil
+        case .enteringFirst, .operatorPending, .trailingOperatorPending, .showingResult, .error:
+            break
+        }
+    }
+
+    func clearAll() {
+        state = .enteringFirst
+        first = 0
+        second = nil
+        trailing = nil
+        currentOperator = nil
+        trailingOperator = nil
+        lastRepeat = nil
+        secondPercentTemplate = nil
+        trailingPercentTemplate = nil
+        currentInput = "0"
+    }
+
+    func enterError() -> String {
+        clearAll()
+        state = .error
+        currentInput = "Error"
+        return currentInput
     }
 }

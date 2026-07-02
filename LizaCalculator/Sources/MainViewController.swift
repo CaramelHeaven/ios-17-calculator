@@ -230,7 +230,7 @@ private extension MainViewController {
         }
         operationButtons.forEach { $0.isSelected = false }
 
-        numbersLabel.text = CalculatorService.shared.didTapNumber(number).format()
+        numbersLabel.text = CalculatorService.shared.didTapNumber(number)
     }
 
     @objc func didTapOperationButton(_ sender: NumberButton) {
@@ -253,7 +253,6 @@ private extension MainViewController {
     @objc func didTapResultButton(_ sender: NumberButton) {
         numbersLabel.text = CalculatorService.shared
             .didTapEquals()
-            .format()
     }
 
     @objc func didSwipeLabel(_ sender: UISwipeGestureRecognizer) {
