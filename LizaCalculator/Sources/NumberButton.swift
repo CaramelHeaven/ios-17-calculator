@@ -7,7 +7,7 @@ final class NumberButton: UIControl {
         var highlightedColor: UIColor {
             switch self {
             case .number: .hex("#5c5a5d")
-            case .operation: .hex("#eab77f")
+            case .operation: .hex("#C3B4E0")
             case .instrument: .hex("#d0ced1")
             }
         }
@@ -15,7 +15,7 @@ final class NumberButton: UIControl {
         var defaultColor: UIColor {
             switch self {
             case .number: .hex("#3a3a3c")
-            case .operation: .hex("#f2a33a")
+            case .operation: .hex("#B6A3D6")
             case .instrument: .hex("#8f8f94")
             }
         }
@@ -30,7 +30,14 @@ final class NumberButton: UIControl {
         var selectedTextColor: UIColor {
             switch self {
             case .number, .instrument: .red
-            case .operation: .hex("#df8c2e")
+            case .operation: .hex("#8E79B7")
+            }
+        }
+
+        var selectedBackgroundColor: UIColor {
+            switch self {
+            case .operation: .hex("#D2C7E8")
+            case .number, .instrument: .white
             }
         }
     }
@@ -76,7 +83,9 @@ final class NumberButton: UIControl {
     }
 
     private func makeAppearance() {
-        backgroundColor = isSelected ? .white : isHighlighted ? type.highlightedColor : type.defaultColor
+        backgroundColor = isSelected
+            ? type.selectedBackgroundColor
+            : isHighlighted ? type.highlightedColor : type.defaultColor
         label.textColor = isSelected ? type.selectedTextColor : type.defaultTextColor
     }
 }

@@ -52,6 +52,7 @@ final class MainViewController: UIViewController {
 
         drawSelf()
         makeConstraints()
+        updateDisplay(with: CalculatorService.shared.currentValue())
     }
 
     @objc func handleLongPress(_ gestureRecognizer: UILongPressGestureRecognizer) {
@@ -71,7 +72,6 @@ final class MainViewController: UIViewController {
         button0.layer.cornerRadius = 40
         buttonDot.backgroundColor = .hex("#3a3a3c")
         buttonDot.layer.cornerRadius = buttonDot.bounds.width / 2
-        resultbutton.backgroundColor = .hex("#f2a33a")
         resultbutton.layer.cornerRadius = resultbutton.bounds.width / 2
 
         numberButtons.forEach { view in
@@ -84,7 +84,6 @@ final class MainViewController: UIViewController {
         }
         [addbutton, subtractButton, multiplyButton, divideButton].forEach { view in
             view.layer.cornerRadius = view.bounds.width / 2
-            view.backgroundColor = .hex("#f2a33a")
         }
     }
 
@@ -134,9 +133,9 @@ final class MainViewController: UIViewController {
         modularButton.label.font = .systemFont(ofSize: 32)
 
         // ------
-        divideButton.label.text = "/"
-        multiplyButton.label.text = "x"
-        subtractButton.label.text = "-"
+        divideButton.label.text = "÷"
+        multiplyButton.label.text = "×"
+        subtractButton.label.text = "−"
         addbutton.label.text = "+"
 
         // ------
@@ -224,13 +223,28 @@ final class MainViewController: UIViewController {
 
 // MARK: - Actions
 private extension MainViewController {
+    func updateDisplay(with rawValue: String) {
+        numbersLabel.text = rawValue.format()
+        refreshClearButtonTitle()
+    }
+
+    func refreshClearButtonTitle() {
+        ACButton.label.text = CalculatorService.shared.shouldShowAllClear ? "AC" : "C"
+    }
+
     @objc func didTapNumberButton(_ sender: NumberButton) {
+        if sender === ACButton {
+            operationButtons.forEach { $0.isSelected = false }
+            updateDisplay(with: CalculatorService.shared.didTapClear())
+            return
+        }
+
         guard let number = sender.label.text else {
             return
         }
         operationButtons.forEach { $0.isSelected = false }
 
-        numbersLabel.text = CalculatorService.shared.didTapNumber(number)
+        updateDisplay(with: CalculatorService.shared.didTapNumber(number))
     }
 
     @objc func didTapOperationButton(_ sender: NumberButton) {
@@ -245,14 +259,14 @@ private extension MainViewController {
 
         let prematureResultIfNeeded = CalculatorService.shared.didTapOperator(operation)
         guard let prematureResultIfNeeded else {
+            refreshClearButtonTitle()
             return
         }
-        numbersLabel.text = prematureResultIfNeeded
+        updateDisplay(with: prematureResultIfNeeded)
     }
 
     @objc func didTapResultButton(_ sender: NumberButton) {
-        numbersLabel.text = CalculatorService.shared
-            .didTapEquals()
+        updateDisplay(with: CalculatorService.shared.didTapEquals())
     }
 
     @objc func didSwipeLabel(_ sender: UISwipeGestureRecognizer) {
@@ -260,7 +274,7 @@ private extension MainViewController {
             return
         }
 
-        numbersLabel.text = CalculatorService.shared.didSwipe()
+        updateDisplay(with: CalculatorService.shared.didSwipe())
     }
 }
 
@@ -268,18 +282,16 @@ private extension MainViewController {
 
 private extension String {
     func format() -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        formatter.groupingSeparator = " "
+        if self == "Error" || self.contains(".") || self == "-0" {
+            return self
+        }
 
         guard let decimal = Decimal(string: self) else { return "Error" }
-        let doubleValue = (decimal as NSDecimalNumber).doubleValue
-
-        if abs(doubleValue) >= 10000 {
-            formatter.maximumFractionDigits = 2 // Keep decimals
-        } else {
-            formatter.maximumFractionDigits = 2 // Keep decimals always
-        }
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.usesGroupingSeparator = true
+        formatter.groupingSeparator = " "
+        formatter.maximumFractionDigits = 0
 
         return formatter.string(from: decimal as NSNumber) ?? "Error"
     }

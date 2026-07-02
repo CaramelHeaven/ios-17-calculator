@@ -17,9 +17,9 @@ final class CalculatorEngine {
         init?(symbol: String) {
             switch symbol {
             case "+": self = .add
-            case "-": self = .subtract
-            case "x": self = .multiply
-            case "/": self = .divide
+            case "-", "−": self = .subtract
+            case "x", "×": self = .multiply
+            case "/", "÷": self = .divide
             default: return nil
             }
         }
@@ -84,7 +84,7 @@ final class CalculatorEngine {
 
     func inputDigit(_ digit: String) -> String {
         guard state != .error else {
-            clearAll()
+            resetAll()
             return inputDigit(digit)
         }
 
@@ -109,7 +109,7 @@ final class CalculatorEngine {
 
     func inputDot() -> String {
         guard state != .error else {
-            clearAll()
+            resetAll()
             return inputDot()
         }
 
@@ -305,13 +305,55 @@ final class CalculatorEngine {
     }
 
     func clear() -> String {
-        clearAll()
+        resetAll()
         return currentInput
+    }
+
+    func clearEntry() -> String {
+        guard state != .error else {
+            resetAll()
+            return currentInput
+        }
+
+        switch state {
+        case .enteringFirst:
+            first = 0
+            currentInput = "0"
+        case .operatorPending:
+            startSecondEntry(with: 0)
+        case .enteringSecond:
+            second = 0
+            secondPercentTemplate = nil
+            currentInput = "0"
+        case .trailingOperatorPending:
+            startTrailingEntry(with: 0)
+        case .enteringTrailing:
+            trailing = 0
+            trailingPercentTemplate = nil
+            currentInput = "0"
+        case .showingResult:
+            startNewFirstEntry()
+            lastRepeat = nil
+        case .error:
+            break
+        }
+
+        return currentInput
+    }
+
+    func clearAll() -> String {
+        resetAll()
+        return currentInput
+    }
+
+    var shouldShowAllClear: Bool {
+        guard state != .error else { return true }
+        return currentInput == "0"
     }
 
     func backspace() -> String {
         guard state != .error else {
-            clearAll()
+            resetAll()
             return currentInput
         }
 
@@ -569,7 +611,7 @@ private extension CalculatorEngine {
         }
     }
 
-    func clearAll() {
+    func resetAll() {
         state = .enteringFirst
         first = 0
         second = nil
@@ -583,7 +625,7 @@ private extension CalculatorEngine {
     }
 
     func enterError() -> String {
-        clearAll()
+        resetAll()
         state = .error
         currentInput = "Error"
         return currentInput

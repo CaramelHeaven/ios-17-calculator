@@ -9,7 +9,7 @@ final class CalculatorService {
         case "0", "1", "2", "3", "4", "5", "6", "7", "8", "9":
             return engine.inputDigit(value)
 
-        case "+", "-", "x", "/":
+        case "+", "-", "−", "x", "×", "/", "÷":
             return engine.inputOperator(value) ?? engine.currentValue()
 
         case "=":
@@ -24,8 +24,10 @@ final class CalculatorService {
         case ".":
             return engine.inputDot()
 
-        case "AC", "C":
-            return engine.clear()
+        case "AC":
+            return engine.clearAll()
+        case "C":
+            return engine.clearEntry()
 
         default:
             return engine.currentValue()
@@ -53,10 +55,18 @@ final class CalculatorService {
     }
 
     func didTapClear() -> String {
-        engine.clear()
+        engine.shouldShowAllClear ? engine.clearAll() : engine.clearEntry()
     }
 
     func didSwipe() -> String {
         engine.backspace()
+    }
+
+    var shouldShowAllClear: Bool {
+        engine.shouldShowAllClear
+    }
+
+    func currentValue() -> String {
+        engine.currentValue()
     }
 }
