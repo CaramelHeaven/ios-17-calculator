@@ -455,15 +455,6 @@ private extension CalculatorEngine {
     private func handleOperatorAfterSecond(_ op: Operator) -> String? {
         guard let currentOperator else { return nil }
 
-        if op.isHighPrecedence, !currentOperator.isHighPrecedence {
-            trailingOperator = op
-            trailing = nil
-            trailingPercentTemplate = nil
-            state = .trailingOperatorPending
-            currentInput = formatted(second ?? 0)
-            return nil
-        }
-
         guard let result = evaluateExpression() else {
             return enterError()
         }

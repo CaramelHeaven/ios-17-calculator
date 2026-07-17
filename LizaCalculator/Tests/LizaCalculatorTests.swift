@@ -25,10 +25,17 @@ final class LizaCalculatorTests: XCTestCase {
         XCTAssertEqual(tap(["="], on: engine), "20")
     }
 
-    func test_operatorPrecedence_matchesIOSCalculator() {
+    func test_continuousMode_usesLeftToRightForChainedOperators() {
         let engine = CalculatorEngine()
 
-        XCTAssertEqual(tap(["2", "+", "3", "x", "4", "="], on: engine), "14")
+        XCTAssertEqual(tap(["2", "+", "3", "x", "4", "="], on: engine), "20")
+    }
+
+    func test_subtractThenMultiply_showsIntermediateResultOnMultiplyTap() {
+        let engine = CalculatorEngine()
+
+        XCTAssertEqual(tap(["1", "0", "0", "-", "5", "x"], on: engine), "95")
+        XCTAssertEqual(tap(["2", "="], on: engine), "190")
     }
 
     func test_operatorReplacement_keepsOnlyLastPendingOperator() {
