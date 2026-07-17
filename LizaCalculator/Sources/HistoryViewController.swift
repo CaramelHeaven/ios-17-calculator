@@ -163,7 +163,7 @@ extension HistoryViewController: UITableViewDelegate {
                 title: "Скопировать результат",
                 image: UIImage(systemName: "doc.on.doc")
             ) { _ in
-                UIPasteboard.general.string = target.result.format()
+                UIPasteboard.general.string = NumberDisplay.result(target.result)
             }
             let delete = UIAction(
                 title: "Удалить",
@@ -222,6 +222,6 @@ private final class HistoryCell: UITableViewCell {
 
     func configure(with entry: HistoryEntry) {
         expressionLabel.text = entry.expression
-        resultLabel.text = entry.result.format()
+        resultLabel.text = NumberDisplay.result(entry.result)
     }
 }

@@ -39,7 +39,7 @@ final class CalculationHistoryService {
 
     /// Нажат оператор. `currentDisplay` — сырой операнд ДО обработки движком.
     func noteOperator(_ symbol: String, currentDisplay: String) {
-        let operand = currentDisplay.format()
+        let operand = NumberDisplay.typing(currentDisplay)
 
         if lastWasEquals {
             // Результат предыдущего вычисления становится первым операндом.
@@ -68,7 +68,7 @@ final class CalculationHistoryService {
             return
         }
 
-        let expression = (parts + [lastOperandDisplay.format()])
+        let expression = (parts + [NumberDisplay.typing(lastOperandDisplay)])
             .joined(separator: " ")
         let entry = HistoryEntry(expression: expression, result: result)
         entries.insert(entry, at: 0)

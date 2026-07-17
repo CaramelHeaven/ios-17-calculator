@@ -433,6 +433,7 @@ private extension CalculatorEngine {
         } else if currentInput == "-0" {
             currentInput = "-" + digit
         } else {
+            guard currentInput.filter(\.isNumber).count < NumberDisplay.maxDigits else { return }
             currentInput += digit
         }
     }

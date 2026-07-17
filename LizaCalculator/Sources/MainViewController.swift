@@ -97,9 +97,9 @@ final class MainViewController: UIViewController {
         numbersLabel.textAlignment = .right
         numbersLabel.numberOfLines = 1
 
-        numbersLabel.lineBreakMode = .byTruncatingMiddle
+        numbersLabel.lineBreakMode = .byClipping
         numbersLabel.adjustsFontSizeToFitWidth = true
-        numbersLabel.minimumScaleFactor = 0.5
+        numbersLabel.minimumScaleFactor = 0.4
 
         numbersLabel.isUserInteractionEnabled = true
         let leftSwipe = UISwipeGestureRecognizer(target: self, action: #selector(didSwipeLabel(_:)))
@@ -237,8 +237,10 @@ final class MainViewController: UIViewController {
 
 // MARK: - Actions
 private extension MainViewController {
-    func updateDisplay(with rawValue: String) {
-        numbersLabel.text = rawValue.format()
+    func updateDisplay(with rawValue: String, isResult: Bool = false) {
+        numbersLabel.text = isResult
+            ? NumberDisplay.result(rawValue)
+            : NumberDisplay.typing(rawValue)
         refreshClearButtonTitle()
     }
 
@@ -281,14 +283,14 @@ private extension MainViewController {
             refreshClearButtonTitle()
             return
         }
-        updateDisplay(with: prematureResultIfNeeded)
+        updateDisplay(with: prematureResultIfNeeded, isResult: true)
     }
 
     @objc func didTapResultButton(_ sender: NumberButton) {
         let operandBefore = CalculatorService.shared.currentValue()
         let result = CalculatorService.shared.didTapEquals()
         CalculationHistoryService.shared.commit(lastOperandDisplay: operandBefore, result: result)
-        updateDisplay(with: result)
+        updateDisplay(with: result, isResult: true)
     }
 
     @objc func didTapHistoryButton() {
@@ -297,7 +299,7 @@ private extension MainViewController {
             guard let self else { return }
             CalculationHistoryService.shared.reset()
             self.operationButtons.forEach { $0.isSelected = false }
-            self.updateDisplay(with: CalculatorService.shared.load(entry.result))
+            self.updateDisplay(with: CalculatorService.shared.load(entry.result), isResult: true)
         }
 
         if let sheet = historyVC.sheetPresentationController {
@@ -317,23 +319,6 @@ private extension MainViewController {
 }
 
 // MARK: - Common extensions
-
-extension String {
-    func format() -> String {
-        if self == "Error" || self.contains(".") || self == "-0" {
-            return self
-        }
-
-        guard let decimal = Decimal(string: self) else { return "Error" }
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        formatter.usesGroupingSeparator = true
-        formatter.groupingSeparator = " "
-        formatter.maximumFractionDigits = 0
-
-        return formatter.string(from: decimal as NSNumber) ?? "Error"
-    }
-}
 
 extension UIColor {
     static func hex(_ hex: String) -> UIColor {
