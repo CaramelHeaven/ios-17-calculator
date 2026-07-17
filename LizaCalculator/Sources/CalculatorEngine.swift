@@ -392,6 +392,17 @@ final class CalculatorEngine {
     func currentValue() -> String {
         currentInput
     }
+
+    /// Загрузить готовое значение (напр. результат из истории) как текущий результат.
+    /// Цифра после загрузки начинает новый ввод, оператор продолжает от значения.
+    func load(_ raw: String) -> String {
+        resetAll()
+        let value = Decimal(string: raw) ?? 0
+        first = value
+        currentInput = formatted(value)
+        state = .showingResult
+        return currentInput
+    }
 }
 
 // MARK: - Private

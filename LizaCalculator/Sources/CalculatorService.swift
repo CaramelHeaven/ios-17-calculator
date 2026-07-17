@@ -69,4 +69,8 @@ final class CalculatorService {
     func currentValue() -> String {
         engine.currentValue()
     }
+
+    func load(_ raw: String) -> String {
+        engine.load(raw)
+    }
 }

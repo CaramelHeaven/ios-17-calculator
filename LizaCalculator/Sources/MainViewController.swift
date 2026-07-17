@@ -6,6 +6,7 @@ final class MainViewController: UIViewController {
     // MARK: - Properties
 
     private let numbersLabel = UILabel()
+    private let historyButton = UIButton(type: .system)
 
     private let ACButton = NumberButton(.instrument)
     private let posNegButton = NumberButton(.instrument)
@@ -108,6 +109,12 @@ final class MainViewController: UIViewController {
         numbersLabel.addGestureRecognizer(leftSwipe)
         numbersLabel.addGestureRecognizer(rightSwipe)
 
+        historyButton.setImage(
+            UIImage(systemName: "clock.arrow.circlepath"), for: .normal
+        )
+        historyButton.tintColor = .white
+        historyButton.addTarget(self, action: #selector(didTapHistoryButton), for: .touchUpInside)
+
         stackView0DotResult.axis = .horizontal
         stackView0DotResult.alignment = .center
         stackView0DotResult.distribution = .fill
@@ -160,6 +167,7 @@ final class MainViewController: UIViewController {
             )
         }
 
+        view.addSubview(historyButton)
         view.addSubview(numbersLabel)
         view.addSubview(stackView0DotResult)
         view.addSubview(stackView123)
@@ -177,6 +185,12 @@ final class MainViewController: UIViewController {
         let buttonsSize: Int = Int(UIScreen.main.bounds.width) - 16 - 16 -
             spacingHorizontalButtons - spacingHorizontalButtons - spacingHorizontalButtons
         let result = buttonsSize / 4
+
+        historyButton.snp.makeConstraints { make in
+            make.top.equalTo(view.safeAreaLayoutGuide).offset(8)
+            make.leading.equalToSuperview().inset(20)
+            make.size.equalTo(28)
+        }
 
         numbersLabel.snp.makeConstraints { make in
             make.bottom.equalTo(stackViewAC.snp.top).offset(-30)
@@ -234,6 +248,7 @@ private extension MainViewController {
 
     @objc func didTapNumberButton(_ sender: NumberButton) {
         if sender === ACButton {
+            CalculationHistoryService.shared.reset()
             operationButtons.forEach { $0.isSelected = false }
             updateDisplay(with: CalculatorService.shared.didTapClear())
             return
@@ -242,6 +257,7 @@ private extension MainViewController {
         guard let number = sender.label.text else {
             return
         }
+        CalculationHistoryService.shared.noteOperandInput()
         operationButtons.forEach { $0.isSelected = false }
 
         updateDisplay(with: CalculatorService.shared.didTapNumber(number))
@@ -254,6 +270,9 @@ private extension MainViewController {
         guard let index = operationButtons.firstIndex(where: { $0.hashValue == sender.hashValue }) else {
             return
         }
+        let operandBefore = CalculatorService.shared.currentValue()
+        CalculationHistoryService.shared.noteOperator(operation, currentDisplay: operandBefore)
+
         operationButtons.forEach { $0.isSelected = false }
         operationButtons[index].isSelected = true
 
@@ -266,7 +285,26 @@ private extension MainViewController {
     }
 
     @objc func didTapResultButton(_ sender: NumberButton) {
-        updateDisplay(with: CalculatorService.shared.didTapEquals())
+        let operandBefore = CalculatorService.shared.currentValue()
+        let result = CalculatorService.shared.didTapEquals()
+        CalculationHistoryService.shared.commit(lastOperandDisplay: operandBefore, result: result)
+        updateDisplay(with: result)
+    }
+
+    @objc func didTapHistoryButton() {
+        let historyVC = HistoryViewController()
+        historyVC.onPick = { [weak self] entry in
+            guard let self else { return }
+            CalculationHistoryService.shared.reset()
+            self.operationButtons.forEach { $0.isSelected = false }
+            self.updateDisplay(with: CalculatorService.shared.load(entry.result))
+        }
+
+        if let sheet = historyVC.sheetPresentationController {
+            sheet.detents = [.medium(), .large()]
+            sheet.prefersGrabberVisible = true
+        }
+        present(historyVC, animated: true)
     }
 
     @objc func didSwipeLabel(_ sender: UISwipeGestureRecognizer) {
@@ -280,7 +318,7 @@ private extension MainViewController {
 
 // MARK: - Common extensions
 
-private extension String {
+extension String {
     func format() -> String {
         if self == "Error" || self.contains(".") || self == "-0" {
             return self
